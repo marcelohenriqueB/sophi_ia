@@ -21,6 +21,8 @@ from users import views as user_views
 
     
 urlpatterns = [
+    path('api/', include('api.urls')),
+
     path('', user_views.dashboard_view, name='home'),
     path('admin/', admin.site.urls),
     path('viagens/', include('viagens.urls')),

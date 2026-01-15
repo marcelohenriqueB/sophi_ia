@@ -49,7 +49,7 @@ class Rota(models.Model):
     saindo_de = models.CharField(max_length=255)
     indo_para = models.CharField(max_length=255)
     ativo = models.BooleanField(default=True)
-    suites = models.ManyToManyField(Suite, related_name='rotas', blank=True,)
+    # suites = models.ManyToManyField(Suite, related_name='rotas', blank=True,)
     usuario = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='rotas', null=True, default=None)
     capacidade_diaria = models.IntegerField(default=0)
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)

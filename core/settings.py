@@ -30,6 +30,19 @@ ALLOWED_HOSTS = []
 
 LANGUAGE_CODE = 'pt-br'
 
+from datetime import timedelta
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
 
 # Application definition
 
@@ -47,7 +60,8 @@ INSTALLED_APPS = [
     'inertia',
     # Apps locais
     'viagens',
-    'api'
+    'api',
+    'rest_framework'
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -66,6 +80,7 @@ MIDDLEWARE = [
     'inertia.middleware.InertiaMiddleware',
     'core.middleware.inertia_share_middleware',
     'core.middleware.redirect_if_not_authenticated',  # Adiciona redirecionamento de login
+    
 ]
 
 ROOT_URLCONF = 'core.urls'
