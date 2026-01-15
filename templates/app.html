@@ -1,0 +1,21 @@
+
+{% load django_vite %}
+
+
+<head>
+    {% vite_hmr_client %}
+    {% vite_asset 'src/main.ts' %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap"
+  rel="stylesheet"
+/>
+{% comment %} <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" /> {% endcomment %}
+
+</head>
+
+<body>
+    {% block inertia %}{% endblock %}
+</body>
