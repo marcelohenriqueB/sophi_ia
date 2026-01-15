@@ -9,7 +9,8 @@ from .serializers import (
     RotaDisponibilidadeSerializer, ConfigViagemSerializer,
     CalcularValorReservaSerializer, CustomerSerializer, CriarReservaSerializer
 )
-from datetime import datetime, date
+
+from datetime import datetime, date,timedelta
 from decimal import Decimal
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
@@ -642,9 +643,25 @@ def criar_reserva(request):
             
             # ===== Criar Passageiros =====
             for passageiro_data in passageiros_data:
+                # Validar campos obrigatórios do passageiro
+                nome = passageiro_data.get('nome')
+                documento = passageiro_data.get('documento')
+                
+                if not nome:
+                    return Response({
+                        'status': 'erro',
+                        'mensagem': 'O nome do passageiro é obrigatório'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if not documento:
+                    return Response({
+                        'status': 'erro',
+                        'mensagem': 'O documento do passageiro é obrigatório'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
                 passageiro = PassageirosReserva.objects.create(
-                    nome=passageiro_data.get('nome'),
-                    documento=passageiro_data.get('documento'),
+                    nome=nome,
+                    documento=documento,
                     data_nascimento=passageiro_data.get('data_nascimento') or None,
                     pcd=passageiro_data.get('pcd', False),
                     suite=suite if passageiro_data.get('suite') and suite else None,
