@@ -5,38 +5,21 @@
                 <font-awesome-icon icon="calendar-check" class="text-white" />
             </span>
             <div class="flex flex-col justify-center">
-                <h2 class="text-lg font-medium">Editar Reserva ID: {{ reserva.id }}</h2>
+                <h2 class="text-lg font-medium">Editar Reserva</h2>
                 <p class="text-sm font-normal text-slate-600 my-0">Atualize os detalhes da reserva.</p>
             </div>
-
-            
         </div>
         <hr class="my-4 border-gray-200" />
 
         <div class="px-6 flex flex-col gap-4 md:w-full mt-10">
             <!-- Seção: Informações da Reserva -->
-            <div class="flex justify-between">
+            <div>
                 <span class="text-sm uppercase font-medium text-gray-500 flex items-center gap-2">
                     <font-awesome-icon icon="info-circle" />
                     Informações da Reserva
                 </span>
-
-                <div class="flex gap-2">
-                    <a class="btn btn-info rounded-2xl text-white" :href="reserva.cobranca_asaas_link" target="_blank" rel="noopener noreferrer">
-                        <font-awesome-icon icon="link" class="mr-2" />
-                        Link da Cobrança
-                    </a>
-
-                    <img
-                    v-if="reserva.qr_code_pix"
-                    :src="`data:image/png;base64,${reserva.qr_code_pix}`"
-                    alt="QR Code PIX"
-                    class="w-32 h-32"
-                    />                
-                </div>
-                
             </div>
-            
+
             <div class="flex gap-10 w-full">
                 <div class="flex flex-col gap-2 flex-1">
                     <label for="customer">
@@ -50,13 +33,11 @@
                     </select>
                 </div>
 
-                
-
                 <div class="flex flex-col gap-2 flex-1">
                     <label for="rota">
-                        Rota <span class="text-red-500">*</span>
+                        Rota 
                     </label>
-                    <select v-model="form.rota_id" class="select select-bordered rounded-2xl" required>
+                    <select v-model="form.rota_id" class="select select-bordered rounded-2xl" >
                         <option value="">Selecione uma rota</option>
                         <option v-for="rota in rotas" :key="rota.id" :value="rota.id">
                             {{ rota.nome }} - {{ rota.saindo_de }} → {{ rota.indo_para }}
@@ -68,9 +49,9 @@
             <div class="flex gap-10 w-full">
                 <div class="flex flex-col gap-2 flex-1">
                     <label for="suite">
-                        Suíte <span class="text-red-500">*</span>
+                        Suíte 
                     </label>
-                    <select v-model="form.suite_id" @change="onSuiteChange" class="select select-bordered rounded-2xl" required>
+                    <select v-model="form.suite_id" @change="onSuiteChange" class="select select-bordered rounded-2xl" >
                         <option value="">Selecione uma suíte</option>
                         <option v-for="suite in suites" :key="suite.id" :value="suite.id">
                             {{ suite.nome }} - R$ {{ formatCurrency(suite.valor) }}
@@ -108,25 +89,13 @@
                         Status da Reserva
                     </label>
                     <select v-model="form.status_reserva" class="select select-bordered rounded-2xl">
-                        <option value="RESERVADA">Reservada</option>
-                        <option value="CONFIRMADA">Confirmada</option>
-                        <option value="UTILIZADA">Utilizada</option>
+                        <option value="AGUARDANDO_PAGAMENTO">Aguardando Pagamento</option>
+                        <option value="PAGAMENTO_CONFIRMADO">Pagamento Confirmado</option>
+                        <option value="AGUARDANDO_EMBARQUE">Aguardando Embarque</option>
+                        <option value="EMBARCADO">Embarcado</option>
                         <option value="CANCELADA">Cancelada</option>
                         <option value="REEMBOLSADA">Reembolsada</option>
                     </select>
-                </div>
-            </div>
-
-            <div class="flex gap-10 w-full">
-                <div class="flex flex-col gap-2 flex-1">
-                    <!-- Espaço vazio -->
-                </div>
-
-                <div class="flex flex-col gap-2 flex-1">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" v-model="form.pago" class="checkbox" name="pago" />
-                        <span class="label-text">Pagamento Realizado</span>
-                    </label>
                 </div>
             </div>
 
@@ -168,6 +137,21 @@
                             <input type="date" v-model="passageiro.data_nascimento" 
                                 class="input input-bordered rounded-2xl" />
                         </div>
+
+                        <div class="d-flex gap-2 flex-1" v-if="suiteSelecionada && suiteSelecionada.passageiros_inclusos > 0 && form.passageiros.filter(p => p.suite).length < suiteSelecionada.passageiros_inclusos || passageiro.suite">
+                            <label class="cursor-pointer flex items-center gap-2 mt-6">
+                                <input type="checkbox" @click="passageiro.suite = !passageiro.suite" class="checkbox checkbox-primary" />
+                                Suíte Inclusa (Passagem gratuita) 
+                            </label>
+                        </div>
+
+                        <div class="flex flex-col gap-2 flex-1">
+                            <!-- Espaço vazio para manter alinhamento -->
+                            <label class="cursor-pointer flex items-center gap-2 mt-6">
+                                <input type="checkbox" v-model="passageiro.pcd" class="checkbox checkbox-primary" />
+                                Possui Desconto PCD
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -178,145 +162,182 @@
                 </button>
             </div>
 
-            <!-- Resumo do Valor -->
-            <div class="alert alert-info mt-4" v-if="suiteSelecionada">
-                <div class="flex flex-col gap-1">
-                    <p class="font-medium">Resumo do Valor:</p>
-                    <p class="text-sm">
-                        Valor da Suíte: R$ {{ formatCurrency(suiteSelecionada.valor) }}
-                    </p>
-                    <p class="text-sm">
-                        Passageiros inclusos: {{ suiteSelecionada.passageiros_inclusos }}
-                    </p>
-                    <p class="text-sm">
-                        Total de passageiros: {{ form.passageiros.length }}
-                    </p>
-                    <p class="text-sm">
-                        Passageiros adicionais: {{ passageirosAdicionais }}
-                        <span v-if="passageirosAdicionais > 0">
-                            (R$ {{ formatCurrency(suiteSelecionada.valor_passageiro_adicional || (parseFloat(suiteSelecionada.valor || 0) * 0.3)) }} cada = R$ {{ formatCurrency(valorPassageirosAdicionais) }})
-                        </span>
-                    </p>
-                    <p class="text-lg font-bold mt-2">
-                        Total: R$ {{ formatCurrency(valorTotal) }}
-                    </p>
-                </div>
-            </div>
-
+            
             <div class="flex justify-start mt-8">
-                <button type="submit" class="btn bg-amber-500 shadow-none text-white rounded-2xl px-6">
-                    Atualizar Reserva
+                <button type="submit" class="btn bg-purple-500 shadow-none text-white rounded-2xl px-6">
+                    Salvar Alterações
                 </button>
             </div>
         </div>
     </form>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 
+interface Passageiro {
+    nome: string
+    documento: string
+    data_nascimento: string
+    desconto?: number
+    suite?: boolean
+    pcd: boolean
+}
+interface ConfigViagem {
+    desconto_idoso: number
+    desconto_crianca_5_7: number
+    desconto_crianca_8_10: number
+    desconto_acima_11: number
+    desconto_crianca_0_4: number
+    desconto_pcd: number
+}
+interface Rota {
+    id: string
+    nome: string
+    valor: number
+    saindo_de: string
+    indo_para: string
+}
+class Customer {
+    id!: string
+    nome!: string
+}
+interface Suite {
+    id: string
+    nome: string
+    valor: number
+    passageiros_inclusos: number
+}
+interface Reserva {
+    id: string
+    customer?: { id: string }
+    rota?: { id: string, valor?: number }
+    suite?: { id: string, valor?: number }
+    data_reserva?: string
+    status_reserva?: string
+}
+
 const props = defineProps({
-    reserva: Object,
-    clientes: Array,
-    rotas: Array,
-    suites: Array,
-    passageiros: Array,
+    clientes:   Array as () => Customer[],
+    rotas: {
+        type: Array as () => Rota[],
+        required: true
+    },
+    suites: {
+        type: Array as () => Suite[],
+        required: true
+    },
+    reserva: {
+        type: Object as () => Reserva,
+        required: true
+    },
+    passageiros: {
+        type: Array as () => any[],
+        required: true
+    },
+    // Pode vir nulo nesta view; tratamos como opcional
+    config_viagem: {
+        type: Object as () => ConfigViagem,
+        required: false
+    },
 })
 
-console.log(props.passageiros)
+console.log('Reserva recebida:', props.reserva);
+// Inicializa o formulário com dados existentes
 const form = useForm({
     customer_id: props.reserva.customer?.id || '',
     rota_id: props.reserva.rota?.id || '',
     suite_id: props.reserva.suite?.id || '',
     data_reserva: props.reserva.data_reserva || '',
-    status_reserva: props.reserva.status_reserva || 'RESERVADA',
-    pago: props.reserva.pago || false,
-    passageiros: props.passageiros || [],
+    status_reserva: props.reserva.status_reserva || 'AGUARDANDO_PAGAMENTO',
+    passageiros: (props.passageiros || []).map(p => ({
+        nome: p.nome || '',
+        documento: p.documento || '',
+        data_nascimento: p.data_nascimento || '',
+        pcd: !!p.pcd,
+        suite: !!p.suite,
+    })) as Passageiro[],
 })
 
-const suiteSelecionada = ref(null)
-
-// Inicializa a suíte selecionada
-onMounted(() => {
-    if (form.suite_id) {
-        suiteSelecionada.value = props.suites.find(s => s.id == form.suite_id)
-    }
-    
-    // Carrega os passageiros existentes
-    if (props.reserva.passageiros && props.reserva.passageiros.length > 0) {
-        form.passageiros = props.reserva.passageiros.map(p => ({
-            id: p.id,
-            nome: p.nome,
-            documento: p.documento,
-            data_nascimento: p.data_nascimento || ''
-        }))
-    } else {
-        // Se não tem passageiros, adiciona um vazio
-        // adicionarPassageiro()
-    }
-})
-
-// Calcula quantos passageiros são adicionais (além dos inclusos na suíte)
-const passageirosAdicionais = computed(() => {
-    if (!suiteSelecionada.value) return 0
-    const total = form.passageiros.length
-    const inclusos = suiteSelecionada.value.passageiros_inclusos
-    return Math.max(0, total - inclusos)
-})
-
-// Calcula o valor dos passageiros adicionais
-const valorPassageirosAdicionais = computed(() => {
-    if (!suiteSelecionada.value) return 0
-    // Usa o valor configurado na suíte ou 30% do valor da suíte como fallback
-    const valorPorPassageiro = parseFloat(suiteSelecionada.value.valor_passageiro_adicional || 0)
-    if (valorPorPassageiro > 0) {
-        return passageirosAdicionais.value * valorPorPassageiro
-    }
-    // Fallback: 30% do valor da suíte por passageiro adicional
-    const valorBase = parseFloat(suiteSelecionada.value.valor || 0)
-    return passageirosAdicionais.value * (valorBase * 0.3)
-})
+const suiteSelecionada = ref<null | Suite>(null)
 
 // Calcula o valor total
 const valorTotal = computed(() => {
-    if (!suiteSelecionada.value) return 0
-    const valorSuite = parseFloat(suiteSelecionada.value.valor || 0)
-    return valorSuite + valorPassageirosAdicionais.value
+    const valorSuite = suiteSelecionada.value ? parseFloat(suiteSelecionada.value?.valor.toString() ?? '0') : 0
+
+    const valorRota = form.rota_id ? (() => {
+        const rota = props.rotas?.find(r => r.id == form.rota_id)
+        return rota ? parseFloat(rota.valor.toString() ?? '0') : 0
+    })() : 0
+
+    const cfg = props.config_viagem || ({} as Partial<ConfigViagem>)
+
+    const pegarPassageirosSemSuite = form.passageiros.filter(p => !p.suite)
+
+    const total = pegarPassageirosSemSuite.reduce((acc, passageiro) => {
+        let desconto = 0
+
+        if (passageiro.pcd) {
+            desconto += cfg.desconto_pcd || 0
+        }
+
+        if (passageiro.data_nascimento) {
+            const nascimento = new Date(passageiro.data_nascimento)
+            const hoje = new Date()
+            let idade = hoje.getFullYear() - nascimento.getFullYear()
+            const mes = hoje.getMonth() - nascimento.getMonth()
+            if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
+                idade--
+            }
+
+            if (idade >= 5 && idade <= 7) {
+                desconto += cfg.desconto_crianca_5_7 || 0
+            } else if (idade >= 8 && idade <= 10) {
+                desconto += cfg.desconto_crianca_8_10 || 0
+            } else if (idade >= 0 && idade <= 4) {
+                desconto += cfg.desconto_crianca_0_4 || 0
+            } else if (idade >= 11 && idade <= 17) {
+                desconto += cfg.desconto_acima_11 || 0
+            }
+        }
+
+        const valorComDesconto = valorRota * (1 - desconto / 100)
+        return acc + valorComDesconto
+    }, 0)
+
+    return total + valorSuite
 })
 
-// Quando a suíte é alterada
 function onSuiteChange() {
     const suiteId = form.suite_id
     if (suiteId) {
-        suiteSelecionada.value = props.suites.find(s => s.id == suiteId)
+        suiteSelecionada.value = props.suites.find(suite => suite.id === suiteId) || null
     } else {
         suiteSelecionada.value = null
     }
 }
 
-// Adiciona um novo passageiro
 function adicionarPassageiro() {
     form.passageiros.push({
         nome: '',
         documento: '',
-        data_nascimento: ''
+        data_nascimento: '',
+        pcd: false,
     })
 }
 
-// Remove um passageiro
-function removerPassageiro(index) {
+function removerPassageiro(index: number) {
     form.passageiros.splice(index, 1)
 }
 
-// Formata moeda
-function formatCurrency(value) {
+function formatCurrency(value: number) {
     if (!value) return '0,00'
-    return parseFloat(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return parseFloat(value.toString()).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function submit(e) {
+function submit(e: Event) {
     e.preventDefault()
 
     if (form.passageiros.length === 0) {
@@ -328,13 +349,12 @@ function submit(e) {
         return
     }
 
-    // Adiciona o valor total ao form
     const formData = {
         ...form.data(),
         valor_total: valorTotal.value.toFixed(2)
     }
 
-    form.transform(() => formData).post(`/viagens/reservas/${props.reserva.id}/edit`, {
+    form.transform(() => formData).put(`/viagens/reservas/${props.reserva.id}/edit`, {
         onSuccess: () => {
             Swal.fire({
                 icon: 'success',
@@ -353,4 +373,7 @@ function submit(e) {
         },
     })
 }
+
+// Inicializa suíte selecionada, se houver
+onSuiteChange()
 </script>

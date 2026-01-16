@@ -6,7 +6,8 @@ from django.db import models
 
 from api.Asaas import Asaas
 from viagens.forms import CustomersForm, RotaForm, SuiteForm
-from viagens.models import Customer, Reserva, Rota, Suite
+from viagens.models import Customer, Reserva, Rota, Suite, ConfigViagem
+from users.models import JwtTokenAdmin
 import json
 from django.http import JsonResponse
 from django.core.paginator import Paginator
@@ -16,6 +17,8 @@ import json
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
 
 # # Create your views here.
 # def create_rota(request):
@@ -238,18 +241,180 @@ class EditSuiteView(View):
     
 class ReservaView(View):
     def get(self, request):
+        # Inicia a queryset base
         reservas = Reserva.objects.filter(customer__client=request.user.client).select_related(
             'customer', 'rota', 'suite'
-        ).order_by('-data_reserva')
-        
+        )
+
+        # Aplicar filtros
+        cliente_filtro = request.GET.get('cliente', '').strip()
+        rota_filtro = request.GET.get('rota', '').strip()
+        pago_filtro = request.GET.get('pago', '').strip()
+        data_filtro = request.GET.get('data', '').strip()
+        suite_filtro = request.GET.get('suite', '').strip()
+        status_filtro = request.GET.get('status', '').strip()
+
+        if cliente_filtro:
+            reservas = reservas.filter(customer__nome__icontains=cliente_filtro)
+
+        if rota_filtro:
+            reservas = reservas.filter(rota_id=rota_filtro)
+
+        if suite_filtro:
+            reservas = reservas.filter(suite_id=suite_filtro)
+
+        if pago_filtro:
+            if pago_filtro.lower() == 'true':
+                reservas = reservas.filter(pago=True)
+            elif pago_filtro.lower() == 'false':
+                reservas = reservas.filter(pago=False)
+
+        if status_filtro:
+            reservas = reservas.filter(status_reserva=status_filtro)
+
+        if data_filtro:
+            try:
+                data_obj = datetime.strptime(data_filtro, '%Y-%m-%d').date()
+                reservas = reservas.filter(data_reserva=data_obj)
+            except ValueError:
+                pass
+
+        # Ordenar
+        reservas = reservas.order_by('-data_reserva')
+
+        # Datas distintas para o calendário (após filtros e antes da paginação)
+        datas_reservas = list(reservas.values_list('data_reserva', flat=True).distinct())
+
+        # Paginação
+        paginator = Paginator(reservas, 15)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+
         rotas = Rota.objects.filter(client=request.user.client, ativo=True)
         suites = Suite.objects.filter(client=request.user.client, ativo=True)
-        
+
         return render(request, 'Reservas/Index', {
-            'reservas': list(reservas),
+            'reservas': list(page_obj),
             'rotas': list(rotas),
             'suites': list(suites),
+            'pagination': {
+                'current_page': page_obj.number,
+                'num_pages': paginator.num_pages,
+                'has_previous': page_obj.has_previous(),
+                'has_next': page_obj.has_next(),
+                'total': paginator.count,
+            },
+            'filters': {
+                'cliente': cliente_filtro,
+                'rota': rota_filtro,
+                'pago': pago_filtro,
+                'data': data_filtro,
+                'suite': suite_filtro,
+                'status': status_filtro,
+            },
+            'reserved_dates': [d.isoformat() for d in datas_reservas if d],
         })
+
+class PublicReservaView(View):
+    def get(self, request, token):
+        try:
+            reserva = Reserva.objects.select_related('customer', 'rota', 'suite').prefetch_related('passageiros__suite').get(embarque_uuid=token)
+        except Reserva.DoesNotExist:
+            from django.shortcuts import render as django_render
+            return django_render(request, 'public_reserva.html', {
+                'error': True,
+                'message': 'Reserva não encontrada'
+            }, status=404)
+
+        passageiros = reserva.passageiros.all()
+        qr_link = request.build_absolute_uri(f'/viagens/reservas/{reserva.embarque_uuid}/embarque')
+        
+        from django.shortcuts import render as django_render
+        from django.utils import timezone
+        
+        return django_render(request, 'public_reserva.html', {
+            'reserva': reserva,
+            'passageiros': passageiros,
+            'qr_link': qr_link,
+            'now': timezone.now(),
+        })
+
+@method_decorator(login_required, name='dispatch')
+class EmbarqueReservaView(View):
+    def get(self, request, token):
+        try:
+            reserva = Reserva.objects.select_related('customer', 'rota', 'suite').prefetch_related('passageiros__suite').get(embarque_uuid=token)
+        except Reserva.DoesNotExist:
+            from django.shortcuts import render as django_render
+            return django_render(request, 'public_reserva.html', {
+                'error': True,
+                'message': 'Reserva não encontrada'
+            }, status=404)
+
+        passageiros = reserva.passageiros.all()
+        qr_link = request.build_absolute_uri()
+        
+        from django.shortcuts import render as django_render
+        from django.utils import timezone
+        
+        return django_render(request, 'validar_embarques.html', {
+            'reserva': reserva,
+            'passageiros': passageiros,
+            'qr_link': qr_link,
+            'now': timezone.now(),
+        })
+
+    def post(self, request, token):
+        try:
+            reserva = Reserva.objects.get(embarque_uuid=token)
+            reserva.data_embarque = datetime.now()
+            reserva.status_reserva = 'EMBARCADO'
+            reserva.save()
+            
+            return JsonResponse({'success': True, 'message': 'Embarque confirmado com sucesso.'})
+        except Reserva.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Reserva não encontrada.'}, status=404)
+
+@method_decorator(login_required, name='dispatch')
+class AlterarStatusReservaView(View):
+    """View para alterar o status de uma reserva"""
+    def post(self, request, token):
+        try:
+            import json
+            body = json.loads(request.body)
+            novo_status = body.get('status')
+            
+            if not novo_status:
+                return JsonResponse({'success': False, 'message': 'Status não informado'}, status=400)
+            
+            reserva = Reserva.objects.get(embarque_uuid=token)
+            
+            # Validar status
+            status_validos = ['AGUARDANDO_PAGAMENTO', 'PAGAMENTO_CONFIRMADO', 'AGUARDANDO_EMBARQUE', 'EMBARCADO', 'CANCELADA', 'REEMBOLSADA']
+            if novo_status not in status_validos:
+                return JsonResponse({'success': False, 'message': 'Status inválido'}, status=400)
+            
+            # Atualizar status
+            status_anterior = reserva.get_status_reserva_display()
+            reserva.status_reserva = novo_status
+            
+            # Se alterar para EMBARCADO, registrar data
+            if novo_status == 'EMBARCADO' and not reserva.data_embarque:
+                from django.utils import timezone
+                reserva.data_embarque = timezone.now()
+            
+            reserva.save()
+            
+            return JsonResponse({
+                'success': True, 
+                'message': f'Status alterado de "{status_anterior}" para "{reserva.get_status_reserva_display()}"',
+                'novo_status': novo_status
+            })
+        except Reserva.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Reserva não encontrada'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
 
 class CreateReservaView(View):
     def get(self, request):
@@ -257,7 +422,7 @@ class CreateReservaView(View):
         rotas = Rota.objects.filter(client=request.user.client, ativo=True)
         suites = Suite.objects.filter(client=request.user.client, ativo=True)
         config_viagem = request.user.client.config_viagem
-        
+
         return render(request, 'Reservas/Create', {
             'clientes': list(clientes),
             'rotas': list(rotas),
@@ -409,96 +574,7 @@ class EditReservaView(View):
             'rotas': list(rotas),
             'suites': list(suites),
         })
-    
-    def post(self, request, reserva_id):
-        
-        try:
-            reserva = Reserva.objects.get(id=reserva_id, customer__client=request.user.client)
-            
-            # Obter dados do POST
-            customer_id = request.json.get('customer_id')
-            rota_id = request.json.get('rota_id')
-            suite_id = request.json.get('suite_id')
-            valor_total = request.json.get('valor_total')
-            data_reserva = request.json.get('data_reserva')
-            status_reserva = request.json.get('status_reserva', 'RESERVADA')
-            pago = request.json.get('pago')
-            passageiros_data = request.json.get('passageiros', [])
-            
-            # Validar que os dados pertencem ao client
-            customer = Customer.objects.get(id=customer_id, client=request.user.client)
-            rota = Rota.objects.get(id=rota_id, client=request.user.client)
-            suite = Suite.objects.get(id=suite_id, client=request.user.client)
-            
-            # Atualizar a reserva
-            reserva.customer = customer
-            reserva.rota = rota
-            reserva.suite = suite
-            reserva.valor_total = valor_total
-            reserva.data_reserva = data_reserva
-            reserva.status_reserva = status_reserva
-            reserva.pago = pago
-            
-            # Limpar passageiros antigos
-            reserva.passageiros.clear()
-            
-            # Criar/atualizar passageiros
-            for passageiro_data in passageiros_data:
-                passageiro_id = passageiro_data.get('id')
-                
-                if passageiro_id:
-                    # Atualiza passageiro existente
-                    try:
-                        passageiro = PassageirosReserva.objects.get(id=passageiro_id)
-                        passageiro.nome = passageiro_data.get('nome')
-                        passageiro.documento = passageiro_data.get('documento')
-                        passageiro.data_nascimento = passageiro_data.get('data_nascimento') or None
-                        passageiro.save()
-                    except PassageirosReserva.DoesNotExist:
-                        # Se não encontrar, cria novo
-                        passageiro = PassageirosReserva.objects.create(
-                            nome=passageiro_data.get('nome'),
-                            documento=passageiro_data.get('documento'),
-                            data_nascimento=passageiro_data.get('data_nascimento') or None
-                        )
-                else:
-                    # Cria novo passageiro
-                    passageiro = PassageirosReserva.objects.create(
-                        nome=passageiro_data.get('nome'),
-                        documento=passageiro_data.get('documento'),
-                        data_nascimento=passageiro_data.get('data_nascimento') or None
-                    )
-                
-                reserva.passageiros.add(passageiro)
-            
-            reserva.save()
-            
-            clientes = Customer.objects.filter(client=request.user.client)
-            rotas = Rota.objects.filter(client=request.user.client, ativo=True)
-            suites = Suite.objects.filter(client=request.user.client, ativo=True)
-            
-            return render(request, 'Reservas/Edit', {
-                'reserva': lambda: reserva,
-                'clientes': list(clientes),
-                'rotas': list(rotas),
-                'suites': list(suites),
-            })
-            
-        except Exception as e:
-            print(f"Erro ao atualizar reserva: {e}")
-            reserva = Reserva.objects.get(id=reserva_id, customer__client=request.user.client)
-            clientes = Customer.objects.filter(client=request.user.client)
-            rotas = Rota.objects.filter(client=request.user.client, ativo=True)
-            suites = Suite.objects.filter(client=request.user.client, ativo=True)
-            
-            return render(request, 'Reservas/Edit', {
-                'reserva': lambda: reserva,
-                'clientes': list(clientes),
-                'rotas': list(rotas),
-                'suites': list(suites),
-                'errors': {'erro': str(e)}
-            })
-    
+
     def delete(self, request, reserva_id):
         reserva = Reserva.objects.get(id=reserva_id, customer__client=request.user.client)
         reserva.delete()
@@ -601,4 +677,82 @@ class DashboardView(View):
                 'nome': rota_mais_usada_nome,
                 'total': rota_mais_usada_count
             }
+        })
+
+
+class ConfigViagemView(View):
+    def get(self, request):
+        # Buscar ou criar a configuração
+        config, created = ConfigViagem.objects.get_or_create(
+            client=request.user.client,
+            defaults={
+                'desconto_pcd': 0.00,
+                'desconto_idoso': 0.00,
+                'desconto_crianca_0_4': 0.00,
+                'desconto_crianca_5_7': 0.00,
+                'desconto_crianca_8_10': 0.00,
+                'desconto_acima_11': 0.00,
+            }
+        )
+        
+        admin_token = JwtTokenAdmin.objects.filter(user=request.user).first()
+        return render(request, 'Configuracoes/ConfigViagem', {
+            'config': {
+                'id': config.id,
+                'desconto_pcd': float(config.desconto_pcd),
+                'desconto_idoso': float(config.desconto_idoso),
+                'desconto_crianca_0_4': float(config.desconto_crianca_0_4),
+                'desconto_crianca_5_7': float(config.desconto_crianca_5_7),
+                'desconto_crianca_8_10': float(config.desconto_crianca_8_10),
+                'desconto_acima_11': float(config.desconto_acima_11),
+                'token_asaas': config.token_asaas or '',
+                'token_scale4': config.token_scale4 or '',
+                'criado_em': config.criado_em.isoformat() if config.criado_em else '',
+                'admin_jwt_token': admin_token.token if admin_token and admin_token.token else '',
+                'admin_jwt_expira_em': admin_token.expira_em.isoformat() if admin_token and admin_token.expira_em else '',
+            }
+        })
+    
+    def post(self, request):
+        # Buscar ou criar a configuração
+        config, _ = ConfigViagem.objects.get_or_create(
+            client=request.user.client,
+            defaults={
+                'desconto_pcd': 0.00,
+                'desconto_idoso': 0.00,
+                'desconto_crianca_0_4': 0.00,
+                'desconto_crianca_5_7': 0.00,
+                'desconto_crianca_8_10': 0.00,
+                'desconto_acima_11': 0.00,
+            }
+        )
+        
+        # Atualizar os campos
+        config.desconto_pcd = request.POST.get('desconto_pcd', config.desconto_pcd)
+        config.desconto_idoso = request.POST.get('desconto_idoso', config.desconto_idoso)
+        config.desconto_crianca_0_4 = request.POST.get('desconto_crianca_0_4', config.desconto_crianca_0_4)
+        config.desconto_crianca_5_7 = request.POST.get('desconto_crianca_5_7', config.desconto_crianca_5_7)
+        config.desconto_crianca_8_10 = request.POST.get('desconto_crianca_8_10', config.desconto_crianca_8_10)
+        config.desconto_acima_11 = request.POST.get('desconto_acima_11', config.desconto_acima_11)
+        config.token_asaas = request.POST.get('token_asaas', config.token_asaas)
+        config.token_scale4 = request.POST.get('token_scale4', config.token_scale4)
+        config.save()
+        
+        admin_token = JwtTokenAdmin.objects.filter(user=request.user).first()
+        return render(request, 'Configuracoes/ConfigViagem', {
+            'config': {
+                'id': config.id,
+                'desconto_pcd': float(config.desconto_pcd),
+                'desconto_idoso': float(config.desconto_idoso),
+                'desconto_crianca_0_4': float(config.desconto_crianca_0_4),
+                'desconto_crianca_5_7': float(config.desconto_crianca_5_7),
+                'desconto_crianca_8_10': float(config.desconto_crianca_8_10),
+                'desconto_acima_11': float(config.desconto_acima_11),
+                'token_asaas': config.token_asaas or '',
+                'token_scale4': config.token_scale4 or '',
+                'criado_em': config.criado_em.isoformat() if config.criado_em else '',
+                'admin_jwt_token': admin_token.token if admin_token and admin_token.token else '',
+                'admin_jwt_expira_em': admin_token.expira_em.isoformat() if admin_token and admin_token.expira_em else '',
+            },
+            'mensagem': 'Configuração atualizada com sucesso'
         })

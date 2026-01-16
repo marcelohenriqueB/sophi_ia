@@ -16,4 +16,5 @@ urlpatterns = [
     path('buscar-customer/', views.buscar_customer, name='buscar_customer'),
     path('criar-customer/', views.criar_customer, name='criar_customer'),
     path('criar-reserva/', views.criar_reserva, name='criar_reserva'),
+    path('webhook/asaas/<str:client_id>/', views.webhook_asaas, name='webhook_asaas'),
 ]

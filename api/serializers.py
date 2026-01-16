@@ -60,7 +60,7 @@ class ReservaSerializer(serializers.ModelSerializer):
             'id', 'rota', 'customer', 'suite', 'suite_info', 'valor_total', 
             'pago', 'status_reserva', 'data_reserva', 'criado_em', 
             'passageiros', 'passageiros_info', 'cobranca_asaas_id', 
-            'cobranca_asaas_link', 'qr_code_pix', 'code_pix'
+            'cobranca_asaas_link', 'qr_code_pix', 'code_pix', 'embarque_uuid'
         ]
         read_only_fields = ['id', 'data_reserva', 'criado_em']
 
@@ -72,7 +72,7 @@ class ReservaListSerializer(serializers.ModelSerializer):
         model = Reserva
         fields = [
             'id', 'rota', 'customer', 'suite', 'suite_info', 'valor_total', 
-            'pago', 'status_reserva', 'data_reserva', 'criado_em'
+            'pago', 'status_reserva', 'data_reserva', 'criado_em', 'embarque_uuid'
         ]
         read_only_fields = ['id', 'data_reserva', 'criado_em']
 
@@ -81,11 +81,12 @@ class ConfigViagemSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfigViagem
         fields = [
-            'desconto_pcd', 'desconto_idoso', 
+            'id', 'client', 'desconto_pcd', 'desconto_idoso', 
             'desconto_crianca_0_4', 'desconto_crianca_5_7', 
             'desconto_crianca_8_10', 'desconto_acima_11',
+            'token_asaas', 'token_scale4', 'criado_em'
         ]
-        read_only_fields = ['id', 'criado_em']
+        read_only_fields = ['id', 'client', 'criado_em']
 
 
 class PassageiroCalculoSerializer(serializers.Serializer):

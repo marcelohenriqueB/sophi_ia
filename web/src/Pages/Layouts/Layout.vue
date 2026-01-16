@@ -51,6 +51,12 @@
               </a>
             </li>
 
+            <li class="px-3 py-2 rounded-2xl text-white" :class=" pathname.startsWith('/viagens/config-viagem') ? 'active' : '' ">
+              <a href="/viagens/config-viagem/" class=" font-semibold">
+                <font-awesome-icon icon="sliders" /> Configurações
+              </a>
+            </li>
+
           </ul>
         </nav>
       </div>

@@ -32,7 +32,7 @@ def redirect_if_not_authenticated(get_response):
     """Middleware para redirecionar usuários não autenticados para login"""
     def middleware(request):
         # Rotas públicas que não precisam de autenticação
-        public_paths = ['/login', '/logout', '/admin/', '/static/', '/assets/','/api/']
+        public_paths = ['/login', '/logout', '/admin/', '/static/', '/assets/','/api/','/viagens/reservas/public/']
         
         # Verificar se a rota é pública
         is_public = any(request.path.startswith(path) for path in public_paths)

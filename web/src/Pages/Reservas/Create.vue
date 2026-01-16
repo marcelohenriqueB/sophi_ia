@@ -89,9 +89,10 @@
                         Status da Reserva
                     </label>
                     <select v-model="form.status_reserva" class="select select-bordered rounded-2xl">
-                        <option value="RESERVADA">Reservada</option>
-                        <option value="CONFIRMADA">Confirmada</option>
-                        <option value="UTILIZADA">Utilizada</option>
+                        <option value="AGUARDANDO_PAGAMENTO">Aguardando Pagamento</option>
+                        <option value="PAGAMENTO_CONFIRMADO">Pagamento Confirmado</option>
+                        <option value="AGUARDANDO_EMBARQUE">Aguardando Embarque</option>
+                        <option value="EMBARCADO">Embarcado</option>
                         <option value="CANCELADA">Cancelada</option>
                         <option value="REEMBOLSADA">Reembolsada</option>
                     </select>
@@ -234,7 +235,7 @@ const form = useForm({
     rota_id: '',
     suite_id: '',
     data_reserva: '',
-    status_reserva: 'RESERVADA',
+    status_reserva: 'AGUARDANDO_PAGAMENTO',
     passageiros: [] as Passageiro[],
 })
 

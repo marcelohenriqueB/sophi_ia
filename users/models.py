@@ -47,6 +47,8 @@ class User(AbstractUser):
 
 class JwtTokenAdmin(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.TextField(unique=True, null=True, blank=True)
+    expira_em = models.DateTimeField(null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -54,7 +56,7 @@ class JwtTokenAdmin(models.Model):
         verbose_name_plural = "JWT Tokens"
 
     def __str__(self):
-        return f"JWT para {self.user.username}"
+        return f"JWT para {self.user.email} (expira em {self.expira_em})"
     
 class Client(models.Model):
     phone_number = models.CharField(max_length=20, null=True, blank=True)

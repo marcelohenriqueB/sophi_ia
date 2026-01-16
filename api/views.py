@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from users.models import Client
 from viagens.models import Suite, Reserva, Rota, ConfigViagem, Customer, PassageirosReserva
 from api.Asaas import Asaas
 from .serializers import (
@@ -15,6 +16,9 @@ from decimal import Decimal
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 from django.db.models import Count, Q
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
 # Create your views here.
 
 @api_view(['GET'])
@@ -696,3 +700,95 @@ def criar_reserva(request):
             'status': 'erro',
             'mensagem': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@csrf_exempt
+def webhook_asaas(request, client_id):
+    """
+    Webhook para receber notificações do Asaas sobre status de pagamento
+    
+    Eventos possíveis:
+    - PAYMENT_CREATED: Pagamento criado
+    - PAYMENT_UPDATED: Pagamento atualizado
+    - PAYMENT_CONFIRMED: Pagamento confirmado
+    - PAYMENT_RECEIVED: Pagamento recebido
+    - PAYMENT_OVERDUE: Pagamento vencido
+    - PAYMENT_DELETED: Pagamento deletado
+    - PAYMENT_RESTORED: Pagamento restaurado
+    - PAYMENT_REFUNDED: Pagamento reembolsado
+    - PAYMENT_RECEIVED_IN_CASH: Pagamento recebido em dinheiro
+    - PAYMENT_CHARGEBACK_REQUESTED: Chargeback solicitado
+    - PAYMENT_CHARGEBACK_DISPUTE: Disputa de chargeback
+    - PAYMENT_AWAITING_CHARGEBACK_REVERSAL: Aguardando reversão de chargeback
+    """
+    client = Client.objects.get(id=client_id)  # Apenas para validar se o client existe
+    
+    try:
+        # Captura o payload do webhook
+        webhook_data = json.loads(request.body.decode('utf-8'))
+        
+        # Pega o evento e os dados do pagamento
+        event = webhook_data.get('event')
+        payment = webhook_data.get('payment', {})
+        
+        # ID da cobrança no Asaas
+        cobranca_id = payment.get('id')
+        
+        if not cobranca_id:
+            return Response({
+                'status': 'erro',
+                'mensagem': 'ID da cobrança não encontrado no webhook'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Busca a reserva pelo ID da cobrança
+        try:
+            reserva = Reserva.objects.get(cobranca_asaas_id=cobranca_id,customer__client=client)
+        except Reserva.DoesNotExist:
+            return Response({
+                'status': 'erro',
+                'mensagem': f'Reserva com cobrança {cobranca_id} não encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Atualiza o status da reserva baseado no evento
+        if event == 'PAYMENT_CONFIRMED' or event == 'PAYMENT_RECEIVED':
+            reserva.pago = True
+            reserva.status_reserva = 'CONFIRMADA'
+            
+        elif event == 'PAYMENT_REFUNDED':
+            reserva.status_reserva = 'REEMBOLSADA'
+            reserva.pago = False
+            
+        elif event == 'PAYMENT_OVERDUE':
+            reserva.status_reserva = 'CANCELADA'
+            reserva.pago = False
+            
+        elif event == 'PAYMENT_DELETED':
+            reserva.status_reserva = 'CANCELADA'
+            reserva.pago = False
+        
+        # Salva as alterações
+        reserva.save()
+        
+        return Response({
+            'status': 'sucesso',
+            'mensagem': f'Webhook processado com sucesso. Evento: {event}',
+            'data': {
+                'reserva_id': reserva.id,
+                'status_reserva': reserva.status_reserva,
+                'pago': reserva.pago,
+                'evento': event
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except json.JSONDecodeError:
+        return Response({
+            'status': 'erro',
+            'mensagem': 'Erro ao decodificar JSON do webhook'
+        }, status=status.HTTP_400_BAD_REQUEST)
+        
+    except Exception as e:
+        return Response({
+            'status': 'erro',
+            'mensagem': f'Erro ao processar webhook: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

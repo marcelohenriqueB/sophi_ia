@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Negado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-slate-200 min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-red-600 to-red-800 text-white p-8 text-center">
+                <i class="fas fa-lock text-6xl mb-4 block"></i>
+                <h1 class="text-2xl font-bold">Acesso Negado</h1>
+            </div>
+
+            <!-- Conteúdo -->
+            <div class="p-6 text-center space-y-4">
+                <p class="text-slate-700 text-lg">{{ message }}</p>
+                <p class="text-slate-600 text-sm">Apenas administradores podem acessar esta funcionalidade.</p>
+                
+                <a href="/" class="block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all mt-6">
+                    <i class="fas fa-home mr-2"></i>
+                    Voltar ao Início
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

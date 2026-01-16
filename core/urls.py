@@ -29,4 +29,5 @@ urlpatterns = [
     path('login', user_views.login_view, name='login'),
     path('logout', user_views.logout_view, name='logout'),
     path('profile', user_views.profile_view, name='profile'),
+    path('users/admin-token', user_views.admin_token_view, name='admin_token'),
 ]

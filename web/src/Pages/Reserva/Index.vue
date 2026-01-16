@@ -21,6 +21,68 @@
 
         <hr class="my-4 border-gray-200" />
 
+        <!-- Filtros de Pesquisa -->
+        <div class="px-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Pesquisa por Cliente -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cliente</label>
+                    <input
+                        v-model="filtros.cliente"
+                        type="text"
+                        placeholder="Nome do cliente"
+                        class="input input-bordered w-full rounded-lg"
+                        @input="pesquisar"
+                    />
+                </div>
+
+                <!-- Pesquisa por Rota -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Rota</label>
+                    <input
+                        v-model="filtros.rota"
+                        type="text"
+                        placeholder="Nome da rota"
+                        class="input input-bordered w-full rounded-lg"
+                        @input="pesquisar"
+                    />
+                </div>
+
+                <!-- Filtro por Status de Pagamento -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status Pagamento</label>
+                    <select
+                        v-model="filtros.pago"
+                        class="select select-bordered w-full rounded-lg"
+                        @change="pesquisar"
+                    >
+                        <option value="">Todos</option>
+                        <option value="true">Pago</option>
+                        <option value="false">Pendente</option>
+                    </select>
+                </div>
+
+                <!-- Filtro por Data -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Data Reserva</label>
+                    <input
+                        v-model="filtros.data"
+                        type="date"
+                        class="input input-bordered w-full rounded-lg"
+                        @change="pesquisar"
+                    />
+                </div>
+            </div>
+
+            <!-- Botão Limpar Filtros -->
+            <div class="mt-4">
+                <button @click="limparFiltros" class="btn btn-sm btn-outline rounded-lg">
+                    <font-awesome-icon icon="filter-circle-xmark" class="mr-2" />
+                    Limpar Filtros
+                </button>
+            </div>
+        </div>
+
         <div class="px-6 flex flex-col gap-4 md:w-full mt-10">
             <h1 class="text-2xl mb-5">Lista de Reservas</h1>
             <div class="overflow-x-auto">
@@ -102,11 +164,60 @@ const props = defineProps({
     pagination: {
         type: Object,
         required: true
+    },
+    filters: {
+        type: Object,
+        default: () => ({})
     }
 })
 
 const reservas = ref(props.reservas)
 const pagination = ref(props.pagination)
+
+// Estado dos filtros
+const filtros = ref({
+    cliente: props.filters?.cliente || '',
+    rota: props.filters?.rota || '',
+    pago: props.filters?.pago || '',
+    data: props.filters?.data || ''
+})
+
+// Debounce timer
+let debounceTimer = null
+
+// Função de pesquisa com debounce
+function pesquisar() {
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+        const params = {}
+        
+        if (filtros.value.cliente) params.cliente = filtros.value.cliente
+        if (filtros.value.rota) params.rota = filtros.value.rota
+        if (filtros.value.pago !== '') params.pago = filtros.value.pago
+        if (filtros.value.data) params.data = filtros.value.data
+        
+        router.get(window.location.pathname, params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        })
+    }, 500)
+}
+
+// Limpar filtros
+function limparFiltros() {
+    filtros.value = {
+        cliente: '',
+        rota: '',
+        pago: '',
+        data: ''
+    }
+    router.get(window.location.pathname, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
+    })
+}
 
 // Atualiza os dados se props mudarem
 watch(
@@ -164,6 +275,17 @@ watch(
 
 // Função para mudar de página
 function changePage(page) {
-    router.get(`?page=${page}`, {}, { preserveState: true, replace: true })
+    const params = { page }
+    
+    // Preservar filtros na mudança de página
+    if (filtros.value.cliente) params.cliente = filtros.value.cliente
+    if (filtros.value.rota) params.rota = filtros.value.rota
+    if (filtros.value.pago !== '') params.pago = filtros.value.pago
+    if (filtros.value.data) params.data = filtros.value.data
+    
+    router.get(window.location.pathname, params, { 
+        preserveState: true, 
+        replace: true 
+    })
 }
 </script>

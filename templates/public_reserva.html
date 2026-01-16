@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva #{{ reserva.id }} - Validação de Embarque</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-slate-200 min-h-screen py-8 px-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Card Principal -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold">Validação de Embarque</h1>
+                        <p class="text-blue-100 text-sm mt-1">Reserva #{{ reserva.id }}</p>
+                    </div>
+                    <div class="text-4xl">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code -->
+            <div class="flex justify-center py-8 bg-slate-50">
+                <div class="text-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data={{ qr_link|urlencode }}" 
+                         alt="QR Code de Embarque" 
+                         class="rounded-xl shadow-md border-4 border-white mx-auto">
+                    <p class="text-xs text-slate-500 mt-3 max-w-xs break-words">{{ qr_link }}</p>
+                </div>
+            </div>
+
+            <!-- Dados da Reserva -->
+            <div class="p-6 space-y-6">
+                <!-- Status -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r {% if reserva.pago %}from-green-50 to-green-100{% else %}from-yellow-50 to-yellow-100{% endif %}">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full {% if reserva.pago %}bg-green-500{% else %}bg-yellow-500{% endif %} flex items-center justify-center text-white">
+                            <i class="fas {% if reserva.pago %}fa-check-circle{% else %}fa-clock{% endif %} text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-600 font-medium">Pagamento</p>
+                            <p class="font-bold {% if reserva.pago %}text-green-700{% else %}text-yellow-700{% endif %}">
+                                {% if reserva.pago %}Confirmado{% else %}Pendente{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-slate-600 font-medium">Status</p>
+                        <p class="font-bold text-blue-700">{{ reserva.get_status_reserva_display }}</p>
+                    </div>
+                </div>
+
+                <!-- Botão de Confirmação de Embarque (apenas para AGUARDANDO_EMBARQUE) -->
+                {% if reserva.status_reserva == 'AGUARDANDO_EMBARQUE' %}
+                <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 text-center space-y-4">
+                    <p class="text-sm text-slate-700">
+                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                        Clique no botão abaixo ou escaneie o QR code para confirmar embarque
+                    </p>
+                    
+                    <button onclick="confirmarEmbarquePublico()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        Confirmar Embarque no Sistema
+                    </button>
+
+                    <div class="relative">
+                        <p class="text-xs text-slate-500 mb-2">Ou escaneie o QR code:</p>
+                        <div class="bg-white p-4 rounded-lg inline-block">
+                            <img id="qrEmbarque" alt="QR Code" class="rounded">
+                        </div>
+                    </div>
+                </div>
+                {% elif reserva.status_reserva == 'EMBARCADO' %}
+                <div class="bg-green-50 border-2 border-green-500 rounded-xl p-4 text-center">
+                    <p class="text-green-700 font-bold flex items-center justify-center gap-2">
+                        <i class="fas fa-check-double text-xl"></i>
+                        Embarque confirmado em {{ reserva.data_embarque|date:"d/m/Y H:i" }}
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Informações do Cliente -->
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <h3 class="font-bold text-lg text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-user text-blue-600"></i>
+                        Dados do Cliente
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Nome:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.customer.nome }}</span>
+                        </div>
+                        {% if reserva.customer.email %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Email:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.customer.email }}</span>
+                        </div>
+                        {% endif %}
+                        {% if reserva.customer.telefone %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Telefone:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.customer.telefone }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Informações da Viagem -->
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <h3 class="font-bold text-lg text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-route text-blue-600"></i>
+                        Dados da Viagem
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        {% if reserva.rota %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Rota:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.rota.nome }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Origem:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.rota.saindo_de }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Destino:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.rota.indo_para }}</span>
+                        </div>
+                        {% if reserva.rota.horario_partida %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Horário:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.rota.horario_partida|time:"H:i" }}</span>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        {% if reserva.suite %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Suíte:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.suite.nome }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Data da Reserva:</span>
+                            <span class="font-semibold text-slate-800">{{ reserva.data_reserva|date:"d/m/Y" }}</span>
+                        </div>
+                        <div class="flex justify-between pt-2 border-t border-slate-200">
+                            <span class="text-slate-600 font-medium">Valor Total:</span>
+                            <span class="font-bold text-lg text-emerald-600">R$ {{ reserva.valor_total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Passageiros -->
+                {% if passageiros %}
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <h3 class="font-bold text-lg text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-users text-blue-600"></i>
+                        Passageiros ({{ passageiros|length }})
+                    </h3>
+                    <div class="space-y-3">
+                        {% for passageiro in passageiros %}
+                        <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <p class="font-semibold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-user-circle text-slate-400"></i>
+                                        {{ passageiro.nome }}
+                                    </p>
+                                    <p class="text-sm text-slate-600 mt-1">
+                                        <span class="font-medium">Doc:</span> {{ passageiro.documento }}
+                                    </p>
+                                    {% if passageiro.data_nascimento %}
+                                    <p class="text-xs text-slate-500 mt-1">
+                                        <i class="fas fa-calendar-alt"></i> 
+                                        {{ passageiro.data_nascimento|date:"d/m/Y" }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                {% if passageiro.pcd %}
+                                <span class="badge bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                                    <i class="fas fa-wheelchair"></i> PCD
+                                </span>
+                                {% endif %}
+                                {% if passageiro.suite %}
+                                <span class="badge bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full ml-1">
+                                    <i class="fas fa-bed"></i> {{ passageiro.suite.nome }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-slate-50 p-4 text-center text-xs text-slate-500 border-t border-slate-200">
+                <p><i class="fas fa-shield-alt"></i> Este documento é válido para embarque</p>
+                <p class="mt-1">Gerado em {{ now|date:"d/m/Y H:i" }}</p>
+            </div>
+        </div>
+
+        <!-- Botão de Impressão -->
+        <div class="mt-6 text-center">
+            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all">
+                <i class="fas fa-print mr-2"></i>
+                Imprimir Comprovante
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @media print {
+            body {
+                background: white;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+
+    <script>
+        // Gerar QR code com link do sistema (requer login)
+        document.addEventListener('DOMContentLoaded', function() {
+            const embarqueLink = window.location.origin + '/viagens/reservas/{{ reserva.embarque_uuid }}/embarque';
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(embarqueLink)}`;
+            
+            const qrImg = document.getElementById('qrEmbarque');
+            if (qrImg) {
+                qrImg.src = qrUrl;
+                qrImg.alt = 'QR Code - Link Seguro de Embarque';
+            }
+        });
+
+        async function confirmarEmbarquePublico() {
+            const uuid = '{{ reserva.embarque_uuid }}';
+            
+            if (confirm('Confirmar embarque agora?')) {
+                try {
+                    const response = await fetch(`/viagens/reservas/${uuid}/embarque`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({})
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                } catch (error) {
+                    alert('Erro ao confirmar embarque: ' + error.message);
+                }
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>

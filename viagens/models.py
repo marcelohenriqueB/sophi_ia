@@ -1,5 +1,6 @@
 from django.db import models
 from users.models import Client
+import uuid
 # Create your models here.
 
 
@@ -17,7 +18,8 @@ class ConfigViagem(models.Model):
     desconto_acima_11 = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     desconto_idoso = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     desconto_pcd = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
-    token_asaas = models.CharField(max_length=255, null=True, blank=True)              
+    token_asaas = models.CharField(max_length=255, null=True, blank=True)      
+    token_scale4 = models.CharField(max_length=255, null=True, blank=True)        
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class InertiaMeta:
@@ -87,9 +89,10 @@ class Customer(models.Model):
 
 class Reserva(models.Model):
     STATUS_CHOICES = (
-        ('RESERVADA', 'Reservada'),
-        ('CONFIRMADA', 'Confirmada'),
-        ('UTILIZADA', 'Utilizada'),
+        ('AGUARDANDO_PAGAMENTO', 'Aguardando Pagamento'),
+        ('PAGAMENTO_CONFIRMADO', 'Pagamento Confirmado'),
+        ('AGUARDANDO_EMBARQUE', 'Aguardando Embarque'),
+        ('EMBARCADO', 'Embarcado'),
         ('CANCELADA', 'Cancelada'),
         ('REEMBOLSADA', 'Reembolsada'),
     )
@@ -100,18 +103,21 @@ class Reserva(models.Model):
     suite = models.ForeignKey(Suite, on_delete=models.CASCADE, related_name='reservas', null=True, blank=True)
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     pago = models.BooleanField(default=False)
-    status_reserva = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RESERVADA')
+    status_reserva = models.CharField(max_length=30, choices=STATUS_CHOICES, default='AGUARDANDO_PAGAMENTO')
     cobranca_asaas_id = models.CharField(max_length=255, null=True, blank=True)
     cobranca_asaas_link = models.URLField(null=True, blank=True)
     data_reserva = models.DateField(auto_now_add=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     qr_code_pix = models.TextField(null=True, blank=True)
     code_pix = models.CharField(max_length=255, null=True, blank=True)
+    embarque_uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
+    tempo_pagamento = models.DateTimeField(null=True, blank=True, help_text='Data/hora do timeout de pagamento')
+    data_embarque = models.DateTimeField(null=True, blank=True, help_text='Data/hora do embarque confirmado')
     
     class InertiaMeta:
         fields = (
             'id','rota', 'customer', 'suite', 'valor_total', 'pago', 'status_reserva', 'cobranca_asaas_id',
-            'cobranca_asaas_link', 'data_reserva', 'criado_em', 'qr_code_pix', 'code_pix'
+            'cobranca_asaas_link', 'data_reserva', 'criado_em', 'qr_code_pix', 'code_pix', 'embarque_uuid'
         )
         
     def __str__(self):
