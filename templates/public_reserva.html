@@ -57,24 +57,7 @@
 
                 <!-- Botão de Confirmação de Embarque (apenas para AGUARDANDO_EMBARQUE) -->
                 {% if reserva.status_reserva == 'AGUARDANDO_EMBARQUE' %}
-                <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 text-center space-y-4">
-                    <p class="text-sm text-slate-700">
-                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>
-                        Clique no botão abaixo ou escaneie o QR code para confirmar embarque
-                    </p>
-                    
-                    <button onclick="confirmarEmbarquePublico()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
-                        <i class="fas fa-check-circle mr-2"></i>
-                        Confirmar Embarque no Sistema
-                    </button>
-
-                    <div class="relative">
-                        <p class="text-xs text-slate-500 mb-2">Ou escaneie o QR code:</p>
-                        <div class="bg-white p-4 rounded-lg inline-block">
-                            <img id="qrEmbarque" alt="QR Code" class="rounded">
-                        </div>
-                    </div>
-                </div>
+                
                 {% elif reserva.status_reserva == 'EMBARCADO' %}
                 <div class="bg-green-50 border-2 border-green-500 rounded-xl p-4 text-center">
                     <p class="text-green-700 font-bold flex items-center justify-center gap-2">

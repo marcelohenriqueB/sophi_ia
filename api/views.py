@@ -1,4 +1,5 @@
 from django.shortcuts import render
+import requests
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -29,6 +30,7 @@ def suites_disponiveis(request):
     
     try:
         suites = Suite.objects.filter(ativo=True, client=request.user.client)
+        
         serializer = SuiteSerializer(suites, many=True)
         return Response({
             'status': 'sucesso',
@@ -70,7 +72,7 @@ def suites_por_data(request):
         # Suites que foram reservadas na data
         suites_reservadas = Reserva.objects.filter(
             data_reserva=data_viagem,
-            status_reserva__in=['RESERVADA', 'CONFIRMADA', 'UTILIZADA']
+            status_reserva__in=['RESERVADA', 'CONFIRMADA', 'UTILIZADA','AGUARDANDO_EMBARQUE','EMBARCADO']
         ).values_list('suite_id', flat=True)
         
         # Filtrar apenas suites não reservadas
@@ -129,7 +131,7 @@ def rotas_disponiveis(request):
                     reservas_ativas = Reserva.objects.filter(
                         rota=rota,
                         data_reserva=data_viagem,
-                        status_reserva__in=['RESERVADA', 'CONFIRMADA', 'UTILIZADA']
+                        status_reserva__in=['RESERVADA', 'CONFIRMADA', 'UTILIZADA','AGUARDANDO_EMBARQUE','EMBARCADO']
                     )
                     
                     # Contar todos os passageiros dessas reservas
@@ -753,7 +755,7 @@ def webhook_asaas(request, client_id):
         # Atualiza o status da reserva baseado no evento
         if event == 'PAYMENT_CONFIRMED' or event == 'PAYMENT_RECEIVED':
             reserva.pago = True
-            reserva.status_reserva = 'CONFIRMADA'
+            reserva.status_reserva = 'AGUARDANDO_EMBARQUE'
             
         elif event == 'PAYMENT_REFUNDED':
             reserva.status_reserva = 'REEMBOLSADA'
@@ -770,6 +772,18 @@ def webhook_asaas(request, client_id):
         # Salva as alterações
         reserva.save()
         
+        config_viagem : ConfigViagem = reserva.customer.client.config_viagem
+        
+        if config_viagem.token_scale4:
+            response = requests.post('https://mobile.advogar.site/api/crm/leads',json={
+                'email': reserva.customer.email,
+                'nome': reserva.customer.nome,
+                'celular': reserva.customer.telefone,
+                'conversao': event.lower() + '_no_asaas',
+                'token': config_viagem.token_scale4,
+                'campos_personalizados': []
+            })
+            
         return Response({
             'status': 'sucesso',
             'mensagem': f'Webhook processado com sucesso. Evento: {event}',
