@@ -50,8 +50,7 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     restart: always
     networks:
       - sophi_network
