@@ -53,6 +53,7 @@ services:
       DATABASE_PORT: 5432
       SECRET_KEY: ${SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
     depends_on:
       - db
     restart: always

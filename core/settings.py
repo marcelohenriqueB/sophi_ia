@@ -32,6 +32,9 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
+# CSRF trusted origins from environment (comma-separated, include scheme)
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+
 
 LANGUAGE_CODE = 'pt-br'
 
@@ -203,6 +206,9 @@ if not DEBUG:
     SECURE_CONTENT_SECURITY_POLICY = {
         "default-src": ("'self'",),
     }
+    # Respect proxy headers (e.g., Nginx setting X-Forwarded-Proto)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
 
 INERTIA_LAYOUT = 'app.html'
 AUTH_USER_MODEL = 'users.User'
