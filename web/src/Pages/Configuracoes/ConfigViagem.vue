@@ -237,6 +237,8 @@ interface ConfigViagemData {
   desconto_acima_11: number
   token_asaas: string
   token_scale4: string
+  admin_jwt_token?: string
+  admin_jwt_expira_em?: string
 }
 
 interface Props {

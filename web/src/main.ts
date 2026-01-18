@@ -42,13 +42,15 @@ createInertiaApp({
   },
   
   resolve: (name) => {
-    const pages = import.meta.glob('./Pages/**/*.vue', { eager: true })
+    const pages = import.meta.glob<any>('./Pages/**/*.vue', { eager: true })
     let page = pages[`./Pages/${name}.vue`]
     //pagina de login sem layout
     if (name === 'Auth/Login') {
       return page
     }
-    page.default.layout = page.default.layout || Layout
+    if (page && page.default) {
+      page.default.layout = page.default.layout || Layout
+    }
     return page
   },
   setup({ el, App, props, plugin }) {
