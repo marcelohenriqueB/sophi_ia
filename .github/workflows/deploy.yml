@@ -87,30 +87,30 @@ jobs:
           
           # Build + Up
           echo "🐳 Building images..."
-          docker compose -f "$COMPOSE_FILE" build --no-cache
+          docker compose --env-file .env.prod -f "$COMPOSE_FILE" build --no-cache
           
           echo "🚀 Iniciando containers..."
-          docker compose -f "$COMPOSE_FILE" up -d
+          docker compose --env-file .env.prod -f "$COMPOSE_FILE" up -d
           
           echo "⏳ Aguardando serviços iniciarem (30s)..."
           sleep 30
           
           # Debug: verificar status dos containers
           echo "📊 Status dos containers:"
-          docker compose -f "$COMPOSE_FILE" ps
+          docker compose --env-file .env.prod -f "$COMPOSE_FILE" ps
           
           echo "📊 Logs do banco de dados:"
-          docker compose -f "$COMPOSE_FILE" logs db | tail -20
+          docker compose --env-file .env.prod -f "$COMPOSE_FILE" logs db | tail -20
           
           echo "📊 Rodando migrations com retry..."
           for i in {1..5}; do
             echo "Tentativa $i/5..."
-            docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate && break
+            docker compose --env-file .env.prod -f "$COMPOSE_FILE" exec -T web python manage.py migrate && break
             sleep 5
           done
           
           echo "📁 Coletando arquivos estáticos..."
-          docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
+          docker compose --env-file .env.prod -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
           
           echo "✅ Deploy concluído com sucesso!"
           DEPLOY_EOF
