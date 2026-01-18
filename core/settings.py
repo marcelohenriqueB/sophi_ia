@@ -203,8 +203,7 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_SECURITY_POLICY = {
         "default-src": ("'self'",),
-        }
-}
+    }
 
 INERTIA_LAYOUT = 'app.html'
 AUTH_USER_MODEL = 'users.User'
