@@ -42,8 +42,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copiar dependências Python do builder
 COPY --from=builder /root/.local /root/.local
 
-# Copiar frontend compilado (Vite compila para ../static/dist)
-COPY --from=frontend_builder /app/static /app/static
+# Copiar frontend compilado (Vite compila para web/dist)
+COPY --from=frontend_builder /app/web/dist /app/static/dist
 
 # Copiar projeto
 COPY . .

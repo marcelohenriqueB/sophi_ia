@@ -13,7 +13,7 @@ export default defineConfig(() => ({
   base: '/',
 
   build: {
-    outDir: '../static/dist',
+    outDir: 'dist',
     emptyOutDir: true,
     manifest: true,
   },
