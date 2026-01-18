@@ -39,8 +39,7 @@ jobs:
           
           # Adicionar host à known_hosts
           ssh-keyscan -p $SSH_PORT -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
-          
-          
+
           # SSH config para evitar prompts interativos
           cat > ~/.ssh/config <<EOF
           Host deploy
@@ -60,41 +59,41 @@ jobs:
           echo "📦 Conectando ao servidor para deploy..."
           
           # Executar deploy no servidor
-          ssh deploy bash -s <<'DEPLOY_SCRIPT'
-            set -e
-            PROJECT_DIR="$1"
-            COMPOSE_FILE="$2"
-            
-            cd "$PROJECT_DIR" || { echo "❌ Diretório não encontrado: $PROJECT_DIR"; exit 1; }
-            
-            echo "📦 Atualizando código..."
-            git fetch --all
-            git reset --hard origin/main
-            
-            # Garantir .env.prod
-            if [ ! -f .env.prod ]; then
-              echo "⚠️ .env.prod não encontrado. Criando a partir de .env.prod.example..."
-              cp .env.prod.example .env.prod
-              echo "⚠️ IMPORTANTE: Configure .env.prod no servidor com valores de produção!"
-            fi
-            
-            echo "🔧 Usando compose file: $COMPOSE_FILE"
-            
-            # Build + Up
-            echo "🐳 Building images..."
-            docker compose -f "$COMPOSE_FILE" build --no-cache
-            
-            echo "🚀 Iniciando containers..."
-            docker compose -f "$COMPOSE_FILE" up -d
-            
-            echo "⏳ Aguardando serviços..."
-            sleep 15
-            
-            echo "📊 Rodando migrations..."
-            docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate
-            
-            echo "📁 Coletando arquivos estáticos..."
-            docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
-            
-            echo "✅ Deploy concluído com sucesso!"
-          DEPLOY_SCRIPT "$PROJECT_DIR" "$COMPOSE_FILE"
+          ssh deploy "$PROJECT_DIR" "$COMPOSE_FILE" bash -s <<'DEPLOY_EOF'
+          set -e
+          PROJECT_DIR="$1"
+          COMPOSE_FILE="$2"
+          
+          cd "$PROJECT_DIR" || { echo "❌ Diretório não encontrado: $PROJECT_DIR"; exit 1; }
+          
+          echo "📦 Atualizando código..."
+          git fetch --all
+          git reset --hard origin/main
+          
+          # Garantir .env.prod
+          if [ ! -f .env.prod ]; then
+            echo "⚠️ .env.prod não encontrado. Criando a partir de .env.prod.example..."
+            cp .env.prod.example .env.prod
+            echo "⚠️ IMPORTANTE: Configure .env.prod no servidor com valores de produção!"
+          fi
+          
+          echo "🔧 Usando compose file: $COMPOSE_FILE"
+          
+          # Build + Up
+          echo "🐳 Building images..."
+          docker compose -f "$COMPOSE_FILE" build --no-cache
+          
+          echo "🚀 Iniciando containers..."
+          docker compose -f "$COMPOSE_FILE" up -d
+          
+          echo "⏳ Aguardando serviços..."
+          sleep 15
+          
+          echo "📊 Rodando migrations..."
+          docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate
+          
+          echo "📁 Coletando arquivos estáticos..."
+          docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
+          
+          echo "✅ Deploy concluído com sucesso!"
+          DEPLOY_EOF
