@@ -1,5 +1,5 @@
 # Estágio de build para frontend (Node.js + Vite)
-FROM node:18-alpine as frontend_builder
+FROM node:20-alpine as frontend_builder
 
 WORKDIR /app
 
