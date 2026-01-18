@@ -1,63 +1,66 @@
-# Estágio de build para frontend (Node.js + Vite)
+# =========================
+# Frontend build (Vite)
+# =========================
 FROM node:20-alpine as frontend_builder
 
 WORKDIR /app/web
 
-COPY web/package.json ./
+COPY web/package.json web/package-lock.json* ./
 RUN npm install
+
 COPY web/ .
 RUN npm run build
 
-# Estágio de build para Python
+
+# =========================
+# Python deps build
+# =========================
 FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Instalar dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
-    git \
     gcc \
     python3-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements e instalar dependências Python
 COPY requirements.txt .
 RUN pip install --upgrade pip setuptools wheel && \
     pip install --user --no-cache-dir -r requirements.txt
 
-# Estágio final
+
+# =========================
+# Final image
+# =========================
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependências de runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     postgresql-client \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar dependências Python do builder
+# Python deps
 COPY --from=builder /root/.local /root/.local
 
-# Copiar frontend compilado (Vite compila para web/dist)
-COPY --from=frontend_builder /app/web/dist /app/static/dist
-
-# Copiar projeto
+# Código do projeto
 COPY . .
 
-# Definir PATH
+# Assets do Vite (SEMPRE POR ÚLTIMO)
+COPY --from=frontend_builder /app/web/dist /app/static/dist
+
+# Env
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Criar diretórios necessários
 RUN mkdir -p /app/staticfiles /app/media
 
-# Expor porta
 EXPOSE 8000
 
-# Comando padrão
 CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
