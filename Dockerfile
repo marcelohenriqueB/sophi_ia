@@ -3,8 +3,8 @@ FROM node:18-alpine as frontend_builder
 
 WORKDIR /app
 
-COPY web/package.json web/package-lock.json ./
-RUN npm ci
+COPY web/package.json ./
+RUN npm install
 COPY web/ .
 RUN npm run build
 
