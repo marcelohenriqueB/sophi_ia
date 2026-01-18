@@ -75,7 +75,13 @@ jobs:
             echo "⚠️ .env.prod não encontrado. Criando a partir de .env.prod.example..."
             cp .env.prod.example .env.prod
             echo "⚠️ IMPORTANTE: Configure .env.prod no servidor com valores de produção!"
+            exit 1
           fi
+          
+          # Carregar variáveis de ambiente
+          set -a
+          source .env.prod
+          set +a
           
           echo "🔧 Usando compose file: $COMPOSE_FILE"
           
