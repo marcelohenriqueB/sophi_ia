@@ -4,14 +4,18 @@ FROM python:3.11-slim as builder
 WORKDIR /app
 
 # Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    git \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements e instalar dependências Python
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --user --no-cache-dir -r requirements.txt
 
 # Estágio final
 FROM python:3.11-slim
@@ -19,9 +23,10 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Instalar dependências de runtime
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     postgresql-client \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar dependências Python do builder
