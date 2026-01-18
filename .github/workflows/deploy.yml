@@ -1,0 +1,58 @@
+name: Deploy Sophi IA
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH (Docker Compose v2)
+        uses: appleboy/ssh-action@v0.1.15
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -e
+            if [ -z "${{ secrets.PROJECT_DIR }}" ]; then echo "PROJECT_DIR secret não definido"; exit 1; fi
+            cd "${{ secrets.PROJECT_DIR }}"
+
+            echo "📦 Atualizando código..."
+            git fetch --all
+            git reset --hard origin/main
+
+            # Opcional: garantir .env.prod preenchido no servidor
+            if [ ! -f .env.prod ]; then
+              echo "❗ .env.prod não encontrado; criando a partir de .env.prod.example"
+              cp .env.prod.example .env.prod
+              echo "⚠️ Ajuste valores de produção em .env.prod no servidor."
+            fi
+
+            COMPOSE_FILE="${{ secrets.COMPOSE_FILE }}"
+            if [ -z "$COMPOSE_FILE" ]; then COMPOSE_FILE="docker-compose.prod.yml"; fi
+
+            echo "🔧 Usando compose file: $COMPOSE_FILE"
+
+            # Build + Up
+            docker compose -f "$COMPOSE_FILE" build
+            docker compose -f "$COMPOSE_FILE" up -d
+
+            echo "⏳ Aguardando serviços subirem..."
+            sleep 15
+
+            echo "📊 Migrando banco..."
+            docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate
+
+            echo "📁 Coletando estáticos..."
+            docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
+
+            echo "✅ Deploy concluído"
