@@ -59,7 +59,7 @@ jobs:
           echo "📦 Conectando ao servidor para deploy..."
           
           # Executar deploy no servidor
-          ssh deploy "$PROJECT_DIR" "$COMPOSE_FILE" bash -s <<'DEPLOY_EOF'
+          ssh deploy bash -s "$PROJECT_DIR" "$COMPOSE_FILE" <<'DEPLOY_EOF'
           set -e
           PROJECT_DIR="$1"
           COMPOSE_FILE="$2"
