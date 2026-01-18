@@ -1,4 +1,14 @@
-# Estágio de build
+# Estágio de build para frontend (Node.js + Vite)
+FROM node:18-alpine as frontend_builder
+
+WORKDIR /app
+
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ .
+RUN npm run build
+
+# Estágio de build para Python
 FROM python:3.11-slim as builder
 
 WORKDIR /app
@@ -31,6 +41,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copiar dependências Python do builder
 COPY --from=builder /root/.local /root/.local
+
+# Copiar frontend compilado do estágio anterior
+COPY --from=frontend_builder /app/dist /app/web/dist
 
 # Copiar projeto
 COPY . .
