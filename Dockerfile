@@ -1,7 +1,7 @@
 # Estágio de build para frontend (Node.js + Vite)
 FROM node:20-alpine as frontend_builder
 
-WORKDIR /app
+WORKDIR /app/web
 
 COPY web/package.json ./
 RUN npm install
@@ -43,8 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /root/.local /root/.local
 
 # Copiar frontend compilado do estágio anterior
-COPY --from=frontend_builder /app/dist /app/web/dist
-
+    COPY --from=frontend_builder /app/web/../static/dist /app/static/dist
 # Copiar projeto
 COPY . .
 

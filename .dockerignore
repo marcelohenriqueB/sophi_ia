@@ -9,7 +9,6 @@ venv/
 ENV/
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -35,5 +34,5 @@ Dockerfile
 *.sqlite3
 *.sqlite
 .DS_Store
-node_modules/
+web/node_modules/
 npm-debug.log
