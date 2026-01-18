@@ -34,6 +34,9 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
+          echo "🔑 Testando chave SSH..."
+          ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub 2>/dev/null || { echo "❌ Chave SSH inválida"; exit 1; }
+          
           # Adicionar host à known_hosts
           ssh-keyscan -p $SSH_PORT -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
           
@@ -46,14 +49,22 @@ jobs:
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking accept-new
             UserKnownHostsFile ~/.ssh/known_hosts
+            LogLevel ERROR
           EOF
+          chmod 600 ~/.ssh/config
           
-          echo "📦 Conectando ao servidor..."
+          echo "📦 Testando conexão SSH..."
+          ssh deploy "echo ✅ Conexão SSH OK" || { echo "❌ Falha na autenticação SSH"; exit 1; }
+          
+          echo "📦 Conectando ao servidor para deploy..."
           
           # Executar deploy no servidor
           ssh deploy bash -s <<'DEPLOY_SCRIPT'
             set -e
-            cd $PROJECT_DIR || { echo "❌ Diretório não encontrado: $PROJECT_DIR"; exit 1; }
+            PROJECT_DIR="$1"
+            COMPOSE_FILE="$2"
+            
+            cd "$PROJECT_DIR" || { echo "❌ Diretório não encontrado: $PROJECT_DIR"; exit 1; }
             
             echo "📦 Atualizando código..."
             git fetch --all
@@ -85,7 +96,4 @@ jobs:
             docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
             
             echo "✅ Deploy concluído com sucesso!"
-            echo ""
-            echo "📍 App disponível em: http://$SSH_HOST:8000"
-            echo "📊 Verificar logs: docker compose -f $COMPOSE_FILE logs -f web"
-          DEPLOY_SCRIPT
+          DEPLOY_SCRIPT "$PROJECT_DIR" "$COMPOSE_FILE"
