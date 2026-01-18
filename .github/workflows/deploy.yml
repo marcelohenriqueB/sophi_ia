@@ -12,47 +12,80 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH (Docker Compose v2)
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script_stop: true
-          command_timeout: 30m
-          script: |
+      - name: Deploy via SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          PROJECT_DIR: ${{ secrets.PROJECT_DIR }}
+          COMPOSE_FILE: ${{ secrets.COMPOSE_FILE || 'docker-compose.prod.yml' }}
+        run: |
+          set -e
+          
+          # Validar secrets
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ] || [ -z "$PROJECT_DIR" ]; then
+            echo "❌ Secrets incompletos (SSH_HOST, SSH_USER, SSH_KEY, PROJECT_DIR são obrigatórios)"
+            exit 1
+          fi
+          
+          # Criar diretório .ssh e adicionar chave
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # Adicionar host à known_hosts
+          ssh-keyscan -p $SSH_PORT -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # SSH config para evitar prompts interativos
+          cat > ~/.ssh/config <<EOF
+          Host deploy
+            HostName $SSH_HOST
+            Port $SSH_PORT
+            User $SSH_USER
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking accept-new
+            UserKnownHostsFile ~/.ssh/known_hosts
+          EOF
+          
+          echo "📦 Conectando ao servidor..."
+          
+          # Executar deploy no servidor
+          ssh deploy bash -s <<'DEPLOY_SCRIPT'
             set -e
-            if [ -z "${{ secrets.PROJECT_DIR }}" ]; then echo "PROJECT_DIR secret não definido"; exit 1; fi
-            cd "${{ secrets.PROJECT_DIR }}"
-
+            cd $PROJECT_DIR || { echo "❌ Diretório não encontrado: $PROJECT_DIR"; exit 1; }
+            
             echo "📦 Atualizando código..."
             git fetch --all
             git reset --hard origin/main
-
-            # Opcional: garantir .env.prod preenchido no servidor
+            
+            # Garantir .env.prod
             if [ ! -f .env.prod ]; then
-              echo "❗ .env.prod não encontrado; criando a partir de .env.prod.example"
+              echo "⚠️ .env.prod não encontrado. Criando a partir de .env.prod.example..."
               cp .env.prod.example .env.prod
-              echo "⚠️ Ajuste valores de produção em .env.prod no servidor."
+              echo "⚠️ IMPORTANTE: Configure .env.prod no servidor com valores de produção!"
             fi
-
-            COMPOSE_FILE="${{ secrets.COMPOSE_FILE }}"
-            if [ -z "$COMPOSE_FILE" ]; then COMPOSE_FILE="docker-compose.prod.yml"; fi
-
+            
             echo "🔧 Usando compose file: $COMPOSE_FILE"
-
+            
             # Build + Up
-            docker compose -f "$COMPOSE_FILE" build
+            echo "🐳 Building images..."
+            docker compose -f "$COMPOSE_FILE" build --no-cache
+            
+            echo "🚀 Iniciando containers..."
             docker compose -f "$COMPOSE_FILE" up -d
-
-            echo "⏳ Aguardando serviços subirem..."
+            
+            echo "⏳ Aguardando serviços..."
             sleep 15
-
-            echo "📊 Migrando banco..."
+            
+            echo "📊 Rodando migrations..."
             docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate
-
-            echo "📁 Coletando estáticos..."
+            
+            echo "📁 Coletando arquivos estáticos..."
             docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --noinput
-
-            echo "✅ Deploy concluído"
+            
+            echo "✅ Deploy concluído com sucesso!"
+            echo ""
+            echo "📍 App disponível em: http://$SSH_HOST:8000"
+            echo "📊 Verificar logs: docker compose -f $COMPOSE_FILE logs -f web"
+          DEPLOY_SCRIPT
