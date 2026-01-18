@@ -91,3 +91,4 @@ pipenv.lock
 # Windows
 [Dd]esktop.ini
 Thumbs.db
+/postgres_data_prod/

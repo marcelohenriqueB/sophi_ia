@@ -36,3 +36,4 @@ Dockerfile
 .DS_Store
 web/node_modules/
 npm-debug.log
+/postgres_data_prod/
