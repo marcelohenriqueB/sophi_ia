@@ -7,7 +7,6 @@ COPY web/package.json ./
 RUN npm install
 COPY web/ .
 RUN npm run build
-COPY --from=frontend_builder /app/web/dist /app/static/dist
 
 # Estágio de build para Python
 FROM python:3.11-slim as builder
